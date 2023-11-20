@@ -1,0 +1,4 @@
+rootProject.name = 'dj-guesser'
+include 'beatport-scraper'
+include 'data'
+include 'controller'

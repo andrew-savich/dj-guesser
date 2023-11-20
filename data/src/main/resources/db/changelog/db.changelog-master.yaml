@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - includeAll:
+      path: classpath:/db/changelog/tables/
+      fileType: sql
+      errorIfMissingOrEmpty: true
+  - includeAll:
+      path: classpath:/db/changelog/golddata/
+      fileType: sql
+      errorIfMissingOrEmpty: true

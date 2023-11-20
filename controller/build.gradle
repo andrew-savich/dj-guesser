@@ -1,0 +1,17 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+//    implementation(project(':beatport-scraper')) {
+//        exclude group: 'org.seleniumhq.selenium'
+//    }
+    implementation project(':beatport-scraper')
+    implementation project(':data')
+}
+
+test {
+    useJUnitPlatform()
+}
+
+bootJar {
+    enabled = true
+}

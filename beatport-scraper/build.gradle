@@ -1,0 +1,17 @@
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation "org.seleniumhq.selenium:selenium-java:4.15.0"
+//    implementation "org.seleniumhq.selenium:selenium-chrome-driver:
+//    implementation "org.seleniumhq.selenium:selenium-chromium-driver:${seleniumVersion}"
+//    implementation "org.seleniumhq.selenium:selenium-manager:${seleniumVersion}"
+//    implementation "org.seleniumhq.selenium:selenium-remote-driver:${seleniumVersion}"
+//    implementation "org.seleniumhq.selenium:selenium-api:${seleniumVersion}"
+//    implementation "org.seleniumhq.selenium:selenium-json:${seleniumVersion}"
+//    implementation "org.seleniumhq.selenium:selenium-http:${seleniumVersion}"
+
+    implementation project(':data')
+}
+
+jar {
+    enabled = true
+}
