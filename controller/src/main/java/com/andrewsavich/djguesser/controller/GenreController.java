@@ -1,7 +1,5 @@
 package com.andrewsavich.djguesser.controller;
 
-import com.andrewsavich.djguesser.beatportscraper.service.ScraperService;
-import com.andrewsavich.djguesser.beatportscraper.service.ScraperServiceImpl;
 import com.andrewsavich.djguesser.dao.GenreDAO;
 import com.andrewsavich.djguesser.data.entity.Genre;
 import com.andrewsavich.djguesser.data.service.GenreService;
@@ -15,12 +13,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-public class GuesserController {
+public class GenreController {
 
     private final GenreService genreService;
     private final GenreEntityToDaoConverter genreEntityToDaoConverter;
 
-    public GuesserController(GenreService genreService, GenreEntityToDaoConverter genreEntityToDaoConverter) {
+    public GenreController(
+            GenreService genreService, GenreEntityToDaoConverter genreEntityToDaoConverter) {
         this.genreService = genreService;
         this.genreEntityToDaoConverter = genreEntityToDaoConverter;
     }
@@ -28,8 +27,6 @@ public class GuesserController {
     @GetMapping("/genres")
     public ResponseEntity<List<GenreDAO>> getAllGenres() {
         List<Genre> genres = genreService.getAll();
-        ScraperService scraperService = new ScraperServiceImpl(10L);
-        scraperService.scrapeAllArtistsByGenres(genres);
 
         if (genres.isEmpty()) {
             return ResponseEntity.notFound().build();
@@ -53,8 +50,4 @@ public class GuesserController {
         return ResponseEntity.ok(genreDAO);
     }
 
-//    @GetMapping("/scrap")
-//    public void scrap() {
-//        scraperService.scrapeAllArtistsByGenres(genreService.getAll());
-//    }
 }

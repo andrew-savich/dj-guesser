@@ -1,15 +1,9 @@
 package com.andrewsavich.djguesser.data.entity;
 
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
-import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Entity
@@ -25,7 +19,7 @@ public class Genre {
     private String link;
 
     @ManyToMany(mappedBy = "genres")
-    private Set<BeatportArtist> beatportArtists = new HashSet<>();
+    private Set<BeatportArtist> beatportArtists;
 
     public Long getId() {
         return id;
@@ -57,5 +51,26 @@ public class Genre {
 
     public void setBeatportArtists(Set<BeatportArtist> beatportArtists) {
         this.beatportArtists = beatportArtists;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Genre genre = (Genre) o;
+        return Objects.equals(id, genre.id) && Objects.equals(name, genre.name) && Objects.equals(link, genre.link) && Objects.equals(beatportArtists, genre.beatportArtists);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, link, beatportArtists);
+    }
+
+    @Override
+    public String toString() {
+        return "Genre{" +
+                "id=" + id +
+                ", name='" + name +
+                '}';
     }
 }

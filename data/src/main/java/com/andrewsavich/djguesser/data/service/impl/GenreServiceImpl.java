@@ -26,6 +26,7 @@ public class GenreServiceImpl implements GenreService {
         return genreRepository.findById(id).get();
     }
 
+
     @Override
     public void create(Genre genre) {
         genreRepository.save(genre);
@@ -50,4 +51,6 @@ public class GenreServiceImpl implements GenreService {
     public void deleteById(Long id) {
         genreRepository.deleteById(id);
     }
+
+
 }

@@ -2,121 +2,157 @@ package com.andrewsavich.djguesser.beatportscraper.service;
 
 import com.andrewsavich.djguesser.data.entity.BeatportArtist;
 import com.andrewsavich.djguesser.data.entity.Genre;
-
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
-import org.springframework.beans.factory.annotation.Value;
+import com.andrewsavich.djguesser.data.service.BeatportArtistService;
+import com.andrewsavich.djguesser.data.service.GenreService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
-import java.time.Duration;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.stream.Collectors;
 
-import static com.andrewsavich.djguesser.beatportscraper.util.Constants.A_HREF_TO_ARTIST;
-import static com.andrewsavich.djguesser.beatportscraper.util.Constants.HREF_ATTRIBUTE;
-import static com.andrewsavich.djguesser.beatportscraper.util.Constants.MAIN_TAG;
 
-//@Service
+@Service
 public class ScraperServiceImpl implements ScraperService {
 
-    private final Map<String, BeatportArtist> beatportArtists;
-    private final Duration duration;
+    private final WebClient webClient;
+    private final GenreService genreService;
+    private final BeatportArtistService beatportArtistService;
 
-    public ScraperServiceImpl(@Value("${duration}") long seconds) {
-        this.beatportArtists = new HashMap<>();
-        duration = Duration.ofSeconds(seconds);
+    public ScraperServiceImpl(WebClient webClient, GenreService genreService, BeatportArtistService beatportArtistService) {
+        this.webClient = webClient;
+        this.genreService = genreService;
+        this.beatportArtistService = beatportArtistService;
     }
 
     @Override
-    public Map<String, BeatportArtist> scrapeAllArtistsByGenres(List<Genre> genres) {
-        if (genres.isEmpty()) {
-            throw new RuntimeException("Genres are empty");
-        }
+    public void scrapeArtistsByAllGenres() {
+        List<Genre> genres = genreService.getAll();
+        Map<String, BeatportArtist> beatportArtists = new HashMap<>();
 
         for (Genre genre : genres) {
-            WebDriver driver = new ChromeDriver();
-            driver.get(genre.getLink());
+            beatportArtists.putAll(scrapeAllArtistsByGenre(genre));
+        }
 
-            WebDriverWait wait = new WebDriverWait(driver, duration);
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName(MAIN_TAG)));
+        saveAllArtists(beatportArtists);
+    }
 
-            List<WebElement> elementsWithAttribute = driver.findElements(By.cssSelector(A_HREF_TO_ARTIST));
-            for (WebElement element : elementsWithAttribute) {
-                driver.findElements(By.cssSelector(A_HREF_TO_ARTIST));
-                String name = element.getText();
-                if (!name.isEmpty()) {
-                    BeatportArtist artist = beatportArtists.get(name);
-
-                    if (artist == null) {
-                        artist = new BeatportArtist();
-                        artist.setNickname(name);
-                        artist.setPageUrl(element.getAttribute(HREF_ATTRIBUTE));
-                        beatportArtists.put(name, artist);
-                    }
-
-                    artist.getGenres().add(genre);
+    @Override
+    public void scrapeArtistPhotos() {
+        List<BeatportArtist> artists = beatportArtistService.getAll();
+        if (!artists.isEmpty()) {
+            for (BeatportArtist artist : artists) {
+                if (artist.getPhotoUrl() == null && artist.getPageUrl() != null) {
+                    artist.setPhotoUrl(getArtistPhotoURL(artist.getPageUrl()));
+                    beatportArtistService.update(artist);
                 }
             }
-            driver.quit();
         }
 
-        int numThreads = 10;
-        ExecutorService executorService = Executors.newFixedThreadPool(numThreads);
-
-        List<CompletableFuture<BeatportArtist>> tasks = beatportArtists.entrySet().stream()
-                .map(entry -> scrapePhotoUrlByArtist(entry.getValue(), executorService))
-                .collect(Collectors.toList());
-
-        CompletableFuture.allOf(tasks.toArray(new CompletableFuture[0])).join();
-
-        executorService.shutdown();
-
-        return new HashMap<>(beatportArtists);
     }
 
-    private void scrapePhotoUrlByArtist(BeatportArtist artist) {
-        if (artist.getPageUrl().isEmpty()) {
-            throw new RuntimeException("Page URL is empty");
+    private void saveAllArtists(Map<String, BeatportArtist> beatportArtists) {
+        for (BeatportArtist artist : beatportArtists.values()) {
+            System.out.println("Save to the db: " + artist);
+            beatportArtistService.create(artist);
         }
-        WebDriver driver = new ChromeDriver();
-        driver.get(artist.getPageUrl());
-        WebDriverWait wait = new WebDriverWait(driver, duration);
-        wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName(MAIN_TAG)));
-
-        WebElement imgElementUsingCssSelector = driver.findElement(By.cssSelector("img[alt='" + artist.getNickname() + "']"));
-        String src = imgElementUsingCssSelector.getAttribute("src");
-        driver.quit();
-        System.out.println("URL for: " + artist.getNickname() + ": " + src);
-
-        artist.setPhotoUrl(src);
     }
 
-    private CompletableFuture<BeatportArtist> scrapePhotoUrlByArtist(BeatportArtist artist, ExecutorService executorService) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (artist.getPageUrl().isEmpty()) {
-                throw new RuntimeException("Page URL is empty");
-            }
-            WebDriver driver = new ChromeDriver();
-            driver.get(artist.getPageUrl());
-            WebDriverWait wait = new WebDriverWait(driver, duration);
-            wait.until(ExpectedConditions.presenceOfElementLocated(By.tagName(MAIN_TAG)));
+    private Map<String, BeatportArtist> scrapeAllArtistsByGenre(Genre genre) {
+        System.out.println("--------Scraping for: " + genre.getName() + "   --------");
+        Map<String, BeatportArtist> beatportArtists = new HashMap<>();
+        String json = getJsonFromPage(genre.getLink());
+        List<JsonNode> artistJsonNodes = getArtistJsonNodesFromJson(json);
 
-            WebElement imgElementUsingCssSelector = driver.findElement(By.cssSelector("img[alt='" + artist.getNickname() + "']"));
-            String src = imgElementUsingCssSelector.getAttribute("src");
-            driver.quit();
-            System.out.println("URL for: " + artist.getNickname() + ": " + src);
+        for (JsonNode node : artistJsonNodes) {
+            String beatportId = node.findValue("id").asText();
+            String name = node.findValue("name").asText();
+            String slug = node.findValue("slug").asText();
 
-            artist.setPhotoUrl(src);
-            return artist;
-        }, executorService);
+            BeatportArtist artist = new BeatportArtist();
+            artist.setBeatportId(beatportId);
+            artist.setNickname(name);
+            artist.setGenre(genre);
+            artist.setPageUrl("https://www.beatport.com/artist/" + slug + "/" + beatportId);
+
+            System.out.println("Putting to the map: " + artist);
+            beatportArtists.put(name, artist);
+        }
+
+        return beatportArtists;
     }
+
+    private String getArtistPhotoURL(String pageUrl) {
+        String json = getJsonFromPage(pageUrl);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode = null;
+        try {
+            rootNode = objectMapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            System.out.println(e);
+        }
+
+        if (rootNode == null) {
+            throw new RuntimeException("Root node is null");
+        }
+
+        JsonNode result = rootNode
+                .path("props")
+                .path("pageProps")
+                .path("artist")
+                .path("image")
+                .path("uri");
+
+        return result == null ? "" : result.asText();
+    }
+
+    private List<JsonNode> getArtistJsonNodesFromJson(String json) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode = null;
+        try {
+            rootNode = objectMapper.readTree(json);
+        } catch (JsonProcessingException e) {
+            System.out.println(e);
+        }
+
+        if (rootNode == null) {
+            throw new RuntimeException("Root node is null");
+        }
+
+        JsonNode results = rootNode
+                .path("props")
+                .path("pageProps")
+                .path("dehydratedState")
+                .path("queries").get(0)
+                .path("state")
+                .path("data")
+                .path("results");
+
+        List<JsonNode> artistJsonNodes = results.findValues("artists");
+
+        return artistJsonNodes;
+    }
+
+    private String getJsonFromPage(String pageURI) {
+        String json = "";
+
+        try {
+            String retrievedDataFromPage = webClient.get().uri(new URI(pageURI)).retrieve().bodyToMono(String.class).block();
+            Document doc = Jsoup.parse(retrievedDataFromPage);
+            json = doc.select("script[id=\"__NEXT_DATA__\"]").get(0).data();
+        } catch (URISyntaxException e) {
+            System.out.println(e);
+        }
+
+        return json;
+    }
+
 }

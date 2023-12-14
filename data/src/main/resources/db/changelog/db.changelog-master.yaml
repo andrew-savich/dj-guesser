@@ -1,6 +1,6 @@
 databaseChangeLog:
   - includeAll:
-      path: classpath:/db/changelog/tables/
+      path: classpath:/db/changelog/schema/
       fileType: sql
       errorIfMissingOrEmpty: true
   - includeAll:

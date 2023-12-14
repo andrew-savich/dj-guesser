@@ -25,10 +25,9 @@ subprojects {
         enabled = false
     }
 
-    dependencyManagement {
-        imports {
-            mavenBom "org.seleniumhq.selenium:selenium-java:4.15.0"
-        }
+    dependencies {
+        implementation 'org.springframework.boot:spring-boot-starter-aop'
+        implementation 'org.springframework.boot:spring-boot-starter-logging'
     }
 
 }
